@@ -1,0 +1,4 @@
+-- This file is kept for backward compatibility
+-- All sample data is now in 06-insert-all-sample-data.sql
+-- This file will be executed before 06-insert-all-sample-data.sql
+-- The comprehensive sample data in 06-insert-all-sample-data.sql will override/update these entries

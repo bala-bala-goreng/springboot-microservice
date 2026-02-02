@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: service-gateway
+    version: '@project.version@'
+
+# Gateway configuration - routes managed via YAML
+gateway:
+  oauth2:
+    validation-endpoint: http://service-authentication/api/oauth/token/validate
+  public-paths:
+    - /api/oauth/token
+    - /actuator
+    - /swagger-ui
+    - /api-docs
+    - /v3/api-docs
+  routes:
+    - path: /api/oauth/**
+      service: service-authentication
+      requires-auth: false
+    - path: /api/partners/**
+      service: service-authentication
+      requires-auth: true
+    - path: /api/accounts/**
+      service: service-account
+      requires-auth: true
+    - path: /api/payments/**
+      service: service-payment
+      requires-auth: true

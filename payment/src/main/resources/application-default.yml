@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: service-payment
+  datasource:
+    url: jdbc:postgresql://localhost:5432/app_db
+    username: app_user
+    password: app_password
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        # Enable Hibernate statistics for tracing
+        generate_statistics: true
+        # Format SQL for better readability in traces
+        format_sql: true
+
+server:
+  port: 8082
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+    export:
+      otlp:
+        enabled: true
+    # Enable database/JDBC tracing
+    jdbc:
+      enabled: true
+  otlp:
+    tracing:
+      endpoint: http://${JAEGER_HOST:localhost}:4318/v1/traces
+
+logging:
+  level:
+    root: INFO

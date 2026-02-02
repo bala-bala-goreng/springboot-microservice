@@ -1,0 +1,172 @@
+{
+  "dashboard": {
+    "title": "Authentication Service Dashboard",
+    "tags": ["authentication", "spring-boot", "microservices"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Status",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [{
+          "expr": "up{job=\"authentication\"}",
+          "refId": "A"
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [{
+              "type": "value",
+              "options": {
+                "0": {"text": "DOWN", "color": "red"},
+                "1": {"text": "UP", "color": "green"}
+              }
+            }],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "HTTP Request Rate",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [{
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"authentication\"}[5m])) by (method, uri)",
+          "refId": "A",
+          "legendFormat": "{{method}} {{uri}}"
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "HTTP Response Time (P95)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [{
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"authentication\"}[5m])) by (le))",
+          "refId": "A",
+          "legendFormat": "P95"
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "OAuth2 Token Generation",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [{
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"authentication\", uri=~\"/api/oauth.*\"}[5m])) by (uri)",
+          "refId": "A",
+          "legendFormat": "{{uri}}"
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Database Connection Pool",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "expr": "hikari_connections_active{job=\"authentication\"}",
+            "refId": "A",
+            "legendFormat": "Active"
+          },
+          {
+            "expr": "hikari_connections_idle{job=\"authentication\"}",
+            "refId": "B",
+            "legendFormat": "Idle"
+          },
+          {
+            "expr": "hikari_connections{job=\"authentication\"}",
+            "refId": "C",
+            "legendFormat": "Total"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "JVM Heap Memory",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"authentication\", area=\"heap\"} / 1024 / 1024",
+            "refId": "A",
+            "legendFormat": "Used"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{job=\"authentication\", area=\"heap\"} / 1024 / 1024",
+            "refId": "B",
+            "legendFormat": "Max"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "MB",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "JVM GC Pause Time",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "targets": [{
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum{job=\"authentication\"}[5m])) by (action)",
+          "refId": "A",
+          "legendFormat": "{{action}}"
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: service-gateway
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+
+server:
+  port: 8999
+
+eureka:
+  client:
+    register-with-eureka: false
+    service-url:
+      defaultZone: http://eureka:8761/eureka
+
+gateway:
+  oauth2:
+    validation-endpoint: http://service-authentication/api/oauth/token/validate
+  
+  # Public paths that don't require authentication
+  public-paths:
+    - /api/oauth/token
+    - /actuator
+    - /swagger-ui
+    - /api-docs
+    - /v3/api-docs
+  
+  # Route configuration: path pattern -> service mapping
+  routes:
+    - path: /api/oauth/**
+      service: service-authentication
+      requires-auth: false
+    - path: /api/partners/**
+      service: service-authentication
+      requires-auth: true
+    - path: /api/accounts/**
+      service: service-account
+      requires-auth: true
+    - path: /api/payments/**
+      service: service-payment
+      requires-auth: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+    export:
+      otlp:
+        enabled: true
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
+
+logging:
+  level:
+    root: INFO

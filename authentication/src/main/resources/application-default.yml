@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: service-authentication
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+  datasource:
+    url: jdbc:postgresql://localhost:5432/app_db
+    username: app_user
+    password: app_password
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        # Enable Hibernate statistics for tracing
+        generate_statistics: true
+        # Format SQL for better readability in traces
+        format_sql: true
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+jwt:
+  secret: eleanor-secret-key-for-jwt-token-generation-minimum-256-bits-required-for-security
+  expiration: 3600
+
+oauth:
+  token:
+    expires-in: 3600
+    scope: resource.WRITE resource.READ
+    token-type: Bearer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+    export:
+      otlp:
+        enabled: true
+    # Enable database/JDBC tracing
+    jdbc:
+      enabled: true
+  otlp:
+    tracing:
+      endpoint: http://${JAEGER_HOST:localhost}:4318/v1/traces
+
+logging:
+  level:
+    root: INFO
