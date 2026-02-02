@@ -17,16 +17,6 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Base logging interceptor for HTTP requests/responses.
- * 
- * Best Practice:
- * - Spring Boot 3.x with Micrometer Tracing automatically handles trace context propagation
- * - Trace ID is automatically populated in MDC by Micrometer
- * - This interceptor only focuses on logging request/response details
- * 
- * Each service should create a @Component that extends this class.
- */
 public class ControllerLoggingInterceptor implements HandlerInterceptor {
 
     @Autowired(required = false)
@@ -94,10 +84,6 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
         }
     }
 
-    /**
-     * Get trace ID from Micrometer Tracing (automatically populated by Spring Boot).
-     * Falls back to MDC if Micrometer is not available.
-     */
     private String getTraceId() {
         if (tracer != null && tracer.currentSpan() != null) {
             String traceId = tracer.currentSpan().context().traceId();
@@ -147,4 +133,3 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
         return null;
     }
 }
-
