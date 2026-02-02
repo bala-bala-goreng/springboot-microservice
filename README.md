@@ -1,564 +1,188 @@
 # Spring Boot Microservices Boilerplate
 
-A production-ready microservices boilerplate built with Spring Boot 3.x, Spring Cloud, and modern DevOps practices. This boilerplate provides a complete foundation for building scalable, distributed applications with service discovery, API gateway, authentication, and comprehensive monitoring.
+A ready-to-use microservices setup with Spring Boot 3.x. Everything you need to build and run distributed services: service discovery, API gateway, authentication, monitoring, and logging.
 
-## 🎯 What This Boilerplate Achieves
+## What's Inside
 
-This boilerplate is designed to help you quickly build and deploy a **microservices architecture** with:
+This boilerplate gives you:
 
-- **Service Discovery**: Automatic service registration and discovery using Netflix Eureka
-- **API Gateway**: Centralized routing, authentication, and request forwarding
-- **Authentication & Authorization**: Multi-tenant authentication with OAuth2 and Partner management
-- **Shared Core Library**: Reusable components and utilities across services
-- **Observability**: Distributed tracing (end-to-end from gateway to database), metrics collection, and monitoring dashboards
-- **Containerization**: Docker-based deployment with docker-compose orchestration
-- **Database Support**: PostgreSQL for all data storage
-- **Production-Ready**: Health checks, structured logging, error handling, and security best practices
+- **Service Discovery** - Services find each other automatically using Eureka
+- **API Gateway** - Single entry point that routes requests and handles auth
+- **Authentication** - OAuth2 token generation and validation for partners
+- **Shared Library** - Common code used across all services
+- **Monitoring** - Prometheus for metrics, Grafana for dashboards, Tempo for tracing
+- **Logging** - Centralized logs with Loki, queryable in Grafana
+- **Docker Setup** - Everything runs in containers with docker-compose
 
-## 📐 Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Applications                      │
-│                    (Web, Mobile, Third-party APIs)               │
-└────────────────────────────┬────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      API Gateway (Port 8999)                     │
-│  • Request Routing & Load Balancing                              │
-│  • Token Authentication & Validation                             │
-│  • Header Forwarding (X-INTERNAL-PARTNER-ID)                    │
-│  • Request/Response Transformation                              │
-└────────────────────────────┬────────────────────────────────────┘
-                              │
-                              ▼
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│ Authentication│    │   Account    │    │   Payment    │
-│   Service     │    │   Service    │    │   Service    │
-│  (Port 8080)  │    │  (Port 8081) │    │  (Port 8082) │
-│              │    │              │    │              │
-│ • OAuth2     │    │ • User Mgmt  │    │ • Payments   │
-│ • Partners   │    │ • Accounts   │    │ • Transactions│
-│              │    │ • Profiles   │    │ • Processing  │
-└──────┬───────┘    └──────┬───────┘    └──────┬───────┘
-       │                    │                    │
-       └────────────────────┼────────────────────┘
-                            │
-                            ▼
-              ┌─────────────────────────┐
-              │   Eureka Discovery       │
-              │   (Port 8761)           │
-              │   • Service Registry    │
-              │   • Health Monitoring    │
-              └─────────────────────────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        │                   │                   │
-        ▼                   ▼                   ▼
-┌──────────────┐                        ┌──────────────┐
-│  PostgreSQL  │                        │  Monitoring  │
-│  (Port 5432) │                        │  Stack       │
-│              │                        │              │
-│ • Relational │                        │ • Prometheus │
-│   Data       │                        │ • Grafana    │
-│ • JPA/Hibernate│                      │ • Tempo      │
-│ • Partners   │                        │              │
-│ • Tokens     │                        │              │
-└──────────────┘                        └──────────────┘
-```
-
-## 🏗️ Project Structure
+## How It Works
 
 ```
-springboot-boilerplate/
-│
-├── core/                          # Shared Core Library
-│   ├── src/main/java/com/boilerplate/app/base/
-│   │   ├── config/                # Base configurations
-│   │   ├── filter/                # Request/response filters
-│   │   ├── interceptor/           # Logging interceptors
-│   │   ├── logging/               # Structured logging utilities
-│   │   ├── constant/              # Shared constants
-│   │   └── util/                  # Common utilities
-│   └── pom.xml                    # Maven dependencies
-│
-├── eureka/                        # Service Discovery Server
-│   ├── src/main/java/.../
-│   │   └── EurekaApplication.java
-│   └── pom.xml
-│
-├── config-server/                 # Spring Cloud Config Server
-│   ├── src/main/java/.../
-│   │   └── ConfigServerApplication.java
-│   ├── src/main/resources/config-repo/  # Configuration repository
-│   └── pom.xml
-│
-├── gateway/                       # API Gateway Service
-│   ├── src/main/java/.../
-│   │   ├── config/                # Gateway configuration
-│   │   ├── controller/            # Routing controller
-│   │   ├── service/               # Request forwarding logic
-│   │   ├── filter/                # Authentication filter
-│   │   └── validator/             # Token validation strategies
-│   └── pom.xml
-│
-├── authentication/               # Authentication Service
-│   ├── src/main/java/.../
-│   │   ├── controller/            # OAuth2, Partner endpoints
-│   │   ├── service/               # Authentication business logic
-│   │   ├── model/                 # Data models (JPA entities)
-│   │   └── repository/            # JPA repositories
-│   └── pom.xml
-│
-├── account/                       # Account Management Service
-│   ├── src/main/java/.../
-│   │   ├── controller/            # Account REST endpoints
-│   │   ├── service/               # Account business logic
-│   │   ├── model/                 # JPA entities
-│   │   └── repository/             # JPA repositories
-│   └── pom.xml
-│
-├── payment/                       # Payment Processing Service
-│   ├── src/main/java/.../
-│   │   ├── controller/            # Payment REST endpoints
-│   │   ├── service/               # Payment business logic
-│   │   ├── model/                 # JPA entities
-│   │   └── repository/            # JPA repositories
-│   └── pom.xml
-│
-├── docker/                        # Docker Configuration
-│   ├── docker-compose.yml        # Service orchestration
-│   ├── postgresql/               # PostgreSQL setup
-│   │   ├── Dockerfile
-│   │   └── init/                 # Database initialization scripts
-│   ├── prometheus/               # Prometheus configuration
-│   │   └── prometheus.yml
-│   └── grafana/                  # Grafana dashboards
-│       └── provisioning/
-│
-└── README.md                      # This file
+Client → Gateway (8999) → Services (8080, 8081, 8082)
+                              ↓
+                    Eureka (8761) + PostgreSQL (5432)
+                              ↓
+                    Monitoring (Prometheus, Grafana, Tempo, Loki)
 ```
 
-## 🔧 Core Components
+**Services:**
+- **Gateway** (8999) - Routes requests, validates tokens
+- **Authentication** (8080) - OAuth2 tokens, partner management
+- **Account** (8081) - User and account management
+- **Payment** (8082) - Payment processing
+- **Eureka** (8761) - Service registry
+- **Config Server** (8888) - Centralized configuration
 
-### 1. **Core Library** (`core/`)
-Shared library containing common utilities and base components used across all microservices:
-
-- **Logging**: Structured JSON logging with trace ID correlation
-- **Tracing**: OpenTelemetry bridge for distributed tracing
-- **Filters**: Request/response body caching and processing
-- **Interceptors**: Automatic request/response logging
-- **Utilities**: Common utilities for JSON, date/time, object conversion
-
-**Usage**: All microservices depend on this library via Maven dependency.
-
-### 2. **Eureka Service Discovery** (`eureka/`)
-Netflix Eureka server that acts as a service registry:
-
-- **Service Registration**: All microservices register themselves on startup
-- **Service Discovery**: Services can discover each other by name
-- **Health Monitoring**: Tracks service health status
-- **Load Balancing**: Enables client-side load balancing
-
-**Port**: `8761`  
-**Dashboard**: http://localhost:8761
-
-### 3. **Config Server** (`config-server/`)
-Spring Cloud Config Server for centralized configuration management:
-
-- **Centralized Configuration**: All service configurations in one place
-- **Profile Support**: Environment-specific configurations (default, docker, development)
-- **Service-Specific Configs**: Individual service configurations
-- **Shared Configs**: Common configurations across services
-- **Configuration Refresh**: Update configurations without service restart
-
-**Port**: `8888`  
-**URL**: http://localhost:8888
-
-### 4. **API Gateway** (`gateway/`)
-Central entry point for all client requests:
-
-- **Request Routing**: Routes requests to appropriate backend services based on path patterns
-- **Load Balancing**: Automatic load balancing via Spring Cloud LoadBalancer
-- **Authentication**: JWT token validation for OAuth2 tokens
-- **Tracing**: Automatic trace context propagation to downstream services
-
-**Port**: `8999`  
-**Key Features**:
-- OAuth2 token validation
-- Configurable routes via `application.yml`
-- Request body caching for multiple reads
-- Automatic service discovery via Eureka
-
-### 5. **Authentication Service** (`authentication/`)
-Handles all authentication and authorization:
-
-- **OAuth2 Token Generation**: Client Credentials flow with Basic Authentication for partners
-- **Partner Management**: CRUD operations for partners and API keys
-- **Token Validation & Revocation**: JWT token validation and revocation
-- **Multi-tenant Support**: Supports multiple partners with OAuth2 authentication
-
-**Port**: `8080`  
-**Database**: PostgreSQL  
-**Key Features**:
-- OAuth2 for partners (Basic Auth with JSON body)
-- Partner management with integrated API keys
-- JWT token generation with custom claims
-- Token validation and revocation
-- Database tracing enabled (JDBC spans)
-
-### 6. **Account Service** (`account/`)
-Manages user accounts and profiles:
-
-- **User Management**: User CRUD operations
-- **Account Management**: Account creation, updates, and queries
-- **Profile Management**: User profile operations
-
-**Port**: `8081`  
-**Database**: PostgreSQL  
-**Key Features**:
-- Database tracing enabled (JDBC spans)
-
-### 7. **Payment Service** (`payment/`)
-Handles payment processing and transactions:
-
-- **Payment Processing**: Payment transaction handling
-- **Transaction Management**: Transaction creation, updates, and queries
-- **Payment Gateway Integration**: Integration with external payment providers
-
-**Port**: `8082`  
-**Database**: PostgreSQL  
-**Key Features**:
-- Database tracing enabled (JDBC spans)
-
-## 🔄 Request Flow Example
-
-### Example: OAuth2 Authenticated Request
+## Project Structure
 
 ```
-1. Client Request
-   POST /api/account/users
-   Headers:
-     Authorization: Bearer <jwt-token>
-
-2. Gateway (Port 8999)
-   ├─ AuthenticationFilter validates JWT token
-   ├─ Validates token via Authentication Service
-   ├─ Routes to account service
-   └─ Forwards request with headers
-
-3. Backend Service (Account Service)
-   ├─ Receives authenticated request
-   ├─ Processes user management operation
-   └─ Returns response
-
-4. Response flows back through Gateway to Client
-
-**Tracing**: All requests are automatically traced end-to-end:
-- Gateway span (HTTP request received)
-- RestTemplate span (outgoing HTTP call)
-- Service span (HTTP request in service)
-- Database span (JDBC query execution)
-- All spans linked with same trace ID
+springboot-microservice/
+├── core/              # Shared library (logging, tracing, utils)
+├── eureka/            # Service discovery server
+├── config-server/      # Configuration management
+├── gateway/            # API gateway
+├── authentication/     # Auth service
+├── account/           # Account service
+├── payment/           # Payment service
+└── docker/            # Docker configs and compose file
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-### Prerequisites
-
-- **Java 21+**
-- **Maven 3.6+**
-- **Docker & Docker Compose** (for containerized deployment)
-- **PostgreSQL** (if running services locally)
-
-### Option 1: Docker Compose (Recommended)
-
-The easiest way to run the entire stack:
+### Using Docker (Easiest)
 
 ```bash
-# Navigate to docker directory
 cd docker
-
-# Start all services
 docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Check service status
-docker-compose ps
 ```
 
-**Service URLs**:
-- Eureka Dashboard: http://localhost:8761
-- Config Server: http://localhost:8888
+That's it. All services start automatically.
+
+**Access Points:**
 - Gateway: http://localhost:8999
-- Authentication Service: http://localhost:8080
-- Account Service: http://localhost:8081
-- Payment Service: http://localhost:8082
+- Eureka: http://localhost:8761
+- Config Server: http://localhost:8888
 - Grafana: http://localhost:3000 (admin/admin)
 - Prometheus: http://localhost:9090
-- Grafana Tempo: Distributed tracing (via Grafana Explore)
+- Loki: http://localhost:3100
 
-### Option 2: Local Development
+### Running Locally
 
-1. **Build Core Library**:
+1. Build the core library first:
    ```bash
    cd core
    mvn clean install
    ```
 
-2. **Start Infrastructure**:
+2. Start PostgreSQL and Eureka:
    ```bash
-   # Start PostgreSQL (or use Docker)
-   docker-compose -f docker/docker-compose.yml up -d postgresql
-   
-   # Start Eureka
-   cd eureka
-   mvn spring-boot:run -Dspring-boot.run.profiles=local
+   cd docker
+   docker-compose up -d postgresql eureka
    ```
 
-3. **Start Services** (in separate terminals):
+3. Run each service:
    ```bash
-   # Authentication Service
-   cd authentication
-   mvn spring-boot:run -Dspring-boot.run.profiles=local
-   
-   # Account Service
-   cd account
-   mvn spring-boot:run -Dspring-boot.run.profiles=local
-   
-   # Payment Service
-   cd payment
-   mvn spring-boot:run -Dspring-boot.run.profiles=local
-   
-   # Gateway
-   cd gateway
-   mvn spring-boot:run -Dspring-boot.run.profiles=default
+   # In separate terminals
+   cd authentication && mvn spring-boot:run
+   cd account && mvn spring-boot:run
+   cd payment && mvn spring-boot:run
+   cd gateway && mvn spring-boot:run
    ```
 
-## 📊 Monitoring & Observability
+## How Requests Flow
 
-### Prometheus
-- **URL**: http://localhost:9090
-- **Purpose**: Metrics collection and storage
-- **Metrics**: Service health, request rates, response times, error rates
+1. Client sends request to Gateway (8999) with JWT token
+2. Gateway validates token with Authentication service
+3. Gateway routes request to the right service (Account, Payment, etc.)
+4. Service processes request, talks to database if needed
+5. Response goes back through Gateway to client
 
-### Grafana
-- **URL**: http://localhost:3000
-- **Credentials**: `admin` / `admin`
-- **Purpose**: Visualization and dashboards
-- **Features**: Pre-configured dashboards for microservices overview
+**Tracing:** Every request gets a trace ID. You can see the full journey from gateway → service → database in Grafana Tempo.
 
-### Grafana Tempo
-- **Access**: Via Grafana Explore (http://localhost:3000/explore)
-- **Purpose**: Distributed tracing with end-to-end span visibility
-- **Features**: 
-  - End-to-end request tracing (Gateway → Services → Database)
-  - Database query tracing with JDBC spans
-  - Automatic trace context propagation
-  - Integrated with Grafana for unified observability
-  - All spans visible in single trace view
+## Authentication
 
-### Health Checks
-All services expose health endpoints:
-```bash
-# Service health
-curl http://localhost:8080/actuator/health
-
-# Prometheus metrics
-curl http://localhost:8080/actuator/prometheus
-```
-
-## 🔐 Authentication Flow
-
-### OAuth2 Flow (Partner Authentication)
+### Get a Token
 
 ```bash
-# 1. Generate Token
 curl -X POST "http://localhost:8080/api/oauth/token" \
   -H "Authorization: Basic $(echo -n 'merchant-x-api-key-456:merchant-x-secret-key-123' | base64)" \
   -H "Content-Type: application/json" \
   -d '{"grant_type":"client_credentials"}'
-
-# 2. Use Token
-curl -X GET "http://localhost:8999/api/account/users" \
-  -H "Authorization: Bearer <access_token>"
 ```
 
-### Partner Management
+### Use the Token
 
 ```bash
-# 1. Create Partner
-curl -X POST "http://localhost:8080/partners" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "partnerCode": "TEST_PARTNER",
-    "partnerName": "Test Partner",
-    "clientSecret": "secret-key"
-  }'
-
-# 2. Get Partner
-curl -X GET "http://localhost:8080/partners/TEST_PARTNER"
-
-# 3. Validate Token
-curl -X POST "http://localhost:8080/api/oauth/token/validate" \
-  -H "Content-Type: application/json" \
-  -d '{"token": "<jwt-token>"}'
+curl -X GET "http://localhost:8999/api/accounts" \
+  -H "Authorization: Bearer <your-token>"
 ```
 
-## 🗄️ Database Schema
+## Monitoring
 
-### PostgreSQL
-Used by all services (Authentication, Account, and Payment):
-- **Database**: `app_db`
-- **Schema**: Initialized via `docker/postgresql/init/` scripts
-- **Tables**: 
-  - `authentication.partners`: Partner information and API keys
-  - `authentication.auth_tokens`: JWT tokens for validation and revocation
-  - Account and payment related tables
+### Grafana
+- **URL**: http://localhost:3000
+- **Login**: admin/admin
+- **What you get**: Pre-built dashboards for services, metrics, and traces
 
-## 🛠️ Technology Stack
+### Prometheus
+- **URL**: http://localhost:9090
+- **What it does**: Collects metrics from all services
 
-### Core Technologies
-- **Java 21**: Modern Java features and performance
-- **Spring Boot 3.5.10**: Application framework
-- **Spring Cloud 2025.0.0**: Microservices patterns
-- **Maven**: Build and dependency management
+### Tempo (Tracing)
+- **Access**: Grafana → Explore → Select Tempo
+- **What you see**: Full request traces from gateway to database
 
-### Spring Cloud Components
-- **Netflix Eureka**: Service discovery
-- **Spring Cloud LoadBalancer**: Client-side load balancing
-- **Spring Cloud OpenFeign**: Declarative HTTP clients
-- **Spring Cloud Config**: Configuration management (optional)
+### Loki (Logs)
+- **Access**: Grafana → Explore → Select Loki
+- **What you get**: All service logs in one place
 
-### Databases
-- **PostgreSQL**: Relational database for all services (Authentication, Account, Payment)
+**Query Examples:**
+```logql
+# All request logs
+{container_name=~".*"} | json | operation_name="REQUEST"
 
-### Security
-- **JWT (JJWT 0.12.3)**: Token-based authentication
-- **OAuth2**: Standard authentication protocol (Client Credentials flow)
-- **Basic Authentication**: For OAuth2 token generation
+# Error logs
+{container_name=~".*"} | json | level="ERROR"
 
-### Observability
-- **Micrometer**: Metrics collection
-- **Prometheus**: Metrics storage
-- **Grafana**: Visualization
-- **Grafana Tempo**: Distributed tracing backend
-- **OpenTelemetry**: OTLP protocol for trace export
-
-### Documentation
-- **SpringDoc OpenAPI**: API documentation (Swagger UI)
-
-### Utilities
-- **Lombok**: Boilerplate code reduction
-- **Gson**: JSON processing
-
-## 📝 Configuration
-
-### Spring Cloud Config Server
-
-Centralized configuration management via Spring Cloud Config Server:
-
-- **Port**: `8888`
-- **URL**: http://localhost:8888
-- **Configuration Repository**: `config-server/src/main/resources/config-repo/`
-
-**Features:**
-- Centralized configuration for all services
-- Profile-based configuration (default, docker, development)
-- Service-specific and shared configurations
-- Configuration refresh without restart (via `/actuator/refresh`)
-
-**Configuration Files:**
-- `application.yml` - Shared configuration for all services
-- `service-gateway.yml` - Gateway service configuration
-- `service-authentication.yml` - Authentication service configuration
-- `service-account.yml` - Account service configuration
-- `service-payment.yml` - Payment service configuration
-- `service-eureka.yml` - Eureka service configuration
-
-**Accessing Configuration:**
-```bash
-# Get configuration for a service
-curl http://localhost:8888/service-gateway/default
-
-# Get configuration for specific profile
-curl http://localhost:8888/service-gateway/docker
+# Logs for specific trace
+{container_name=~".*"} | json | trace_id="abc123..."
 ```
 
-**Service Integration:**
-All services automatically connect to config server via:
-```yaml
-spring:
-  config:
-    import: optional:configserver:http://config-server:8888
-```
+## Configuration
 
-### Service Configuration
-Each service has local configuration files that can override config server settings:
-- `application.yml`: Base configuration
-- `application-local.yml`: Local development
-- `application-development.yml`: Development environment
-- `application-default.yml`: Default/production
+All service configs live in `config-server/src/main/resources/config-repo/`. Each service has its own file:
+- `service-gateway.yml`
+- `service-authentication.yml`
+- `service-account.yml`
+- `service-payment.yml`
 
-### Gateway Routes
-Configure routes in config server (`config-server/src/main/resources/config-repo/service-gateway.yml`) or locally:
+Services automatically pull configs from the config server on startup.
 
-```yaml
-gateway:
-  routes:
-    authentication-service:
-      base-path: /auth
-      service-id: eleanor-service-authentication
-      strip-prefix: true
-      enabled: true
-      required-auth: true
-```
+## Database
 
-### Environment Variables
-Services can be configured via environment variables:
-- `SPRING_PROFILES_ACTIVE`: Active profile
-- `SPRING_DATASOURCE_URL`: Database connection
-- `EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE`: Eureka server URL
+PostgreSQL is used by all services. Database is initialized automatically with sample data when you start the stack.
 
-## 🧪 Testing
+**Connection:**
+- Host: localhost
+- Port: 5432
+- Database: app_db
+- User: app_user
+- Password: app_password
 
-### Health Checks
-```bash
-# Check all services
-curl http://localhost:8080/actuator/health
-curl http://localhost:8081/actuator/health
-curl http://localhost:8082/actuator/health
-curl http://localhost:8999/actuator/health
-```
+## Tech Stack
 
-### Service Discovery
-```bash
-# Check Eureka registry
-curl http://localhost:8761/eureka/apps
-```
+- **Java 21**
+- **Spring Boot 3.5.10**
+- **Spring Cloud 2025.0.0**
+- **PostgreSQL**
+- **Eureka** (service discovery)
+- **Prometheus + Grafana** (monitoring)
+- **Tempo** (tracing)
+- **Loki + Promtail** (logging)
 
-### Gateway Routing
-```bash
-# Test gateway routing
-curl http://localhost:8999/api/auth/partners
-```
+## Adding a New Service
 
-## 🔄 Adding a New Microservice
-
-1. **Create Service Module**:
-   ```bash
-   mkdir new-service
-   cd new-service
-   # Copy structure from existing service
-   ```
-
-2. **Add Core Dependency**:
+1. Create a new module (copy structure from `account/` or `payment/`)
+2. Add core dependency in `pom.xml`:
    ```xml
    <dependency>
        <groupId>com.boilerplate.app</groupId>
@@ -566,83 +190,57 @@ curl http://localhost:8999/api/auth/partners
        <version>1.0.0</version>
    </dependency>
    ```
+3. Configure Eureka client in `application.yml`
+4. Add service to `docker/docker-compose.yml`
+5. Add route in `config-server/src/main/resources/config-repo/service-gateway.yml`
 
-3. **Configure Eureka Client**:
-   ```yaml
-   eureka:
-     client:
-       service-url:
-         defaultZone: http://localhost:8761/eureka
-   ```
+## Health Checks
 
-4. **Add to Docker Compose**:
-   ```yaml
-   new-service:
-     build:
-       context: ..
-       dockerfile: new-service/Dockerfile
-     ports:
-       - "8083:8083"
-     environment:
-       - SPRING_PROFILES_ACTIVE=development
-       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka:8761/eureka
-     depends_on:
-       eureka:
-         condition: service_healthy
-   ```
+All services expose health endpoints:
+```bash
+curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
+curl http://localhost:8082/actuator/health
+curl http://localhost:8999/actuator/health
+```
 
-5. **Add Gateway Route**:
-   ```yaml
-   gateway:
-     routes:
-       new-service:
-         base-path: /new
-         service-id: eleanor-service-new
-         strip-prefix: true
-         enabled: true
-   ```
+## What's Included
 
-## 📚 Additional Documentation
+- ✅ Service discovery (Eureka)
+- ✅ API Gateway with routing and auth
+- ✅ OAuth2 authentication
+- ✅ Centralized configuration
+- ✅ Distributed tracing (end-to-end)
+- ✅ Metrics collection (Prometheus)
+- ✅ Log aggregation (Loki)
+- ✅ Circuit breaker (Resilience4j in Gateway)
+- ✅ Structured JSON logging
+- ✅ Docker setup
 
-- **API Collection**: See `docs/hoppscotch.json` for complete API collection
-- **Docker Setup**: See `docker/README.md`
+## Notes
 
-## 🎯 Key Design Patterns
+- All services log in JSON format with trace IDs
+- Logs are automatically collected by Promtail and sent to Loki
+- Traces include database queries (JDBC spans)
+- Gateway uses circuit breaker to prevent cascading failures
+- Config server allows updating configs without restarting services
 
-1. **Microservices Architecture**: Loosely coupled, independently deployable services
-2. **Service Discovery**: Automatic service registration and discovery
-3. **API Gateway Pattern**: Single entry point for all client requests
-4. **OAuth2 Authentication**: Standard OAuth2 Client Credentials flow
-5. **Shared Core Library**: DRY principle for common functionality
-6. **Containerization**: Docker for consistent deployment environments
+## Troubleshooting
 
-## 🔒 Security Considerations
+**Services won't start?**
+- Check if Eureka is running: http://localhost:8761
+- Check if PostgreSQL is running: `docker-compose ps postgresql`
+- Check logs: `docker-compose logs <service-name>`
 
-- **JWT Token Validation**: All authenticated routes validate tokens via Authentication Service
-- **OAuth2 Client Credentials**: Secure token generation using Basic Authentication
-- **Partner Management**: Centralized partner and API key management
-- **Database Security**: Connection strings and credentials via environment variables
-- **API Documentation**: Swagger UI available for development (can be secured in production)
+**Can't see traces?**
+- Make sure all services are running
+- Check Grafana Tempo data source is configured
+- Verify trace IDs are consistent across services
 
-## 🚧 Future Enhancements
-
-Potential improvements and extensions:
-- [ ] Circuit Breaker pattern (Resilience4j)
-- [ ] Message Queue integration (RabbitMQ/Kafka)
-- [ ] Redis for caching and session management
-- [ ] Kubernetes deployment manifests
-- [ ] CI/CD pipeline configuration
-- [ ] Rate limiting and throttling
-- [ ] API versioning strategy
-
-## 📄 License
-
-This is a boilerplate template. Customize as needed for your project.
-
-## 🤝 Contributing
-
-This is a boilerplate project. Feel free to fork and customize for your needs.
+**Logs not showing in Loki?**
+- Check Promtail is running: `docker-compose ps promtail`
+- Verify Promtail can access Docker logs: `docker-compose logs promtail`
 
 ---
 
-**Built with ❤️ using Spring Boot and Spring Cloud**
+**Built with Spring Boot and Spring Cloud**
