@@ -1,11 +1,9 @@
 spring:
   application:
     name: service-gateway
-  cloud:
-    config:
-      enabled: false
-      import-check:
-        enabled: false
+  config:
+    import: optional:configserver:http://localhost:8888
+
 server:
   port: 8999
 
@@ -47,7 +45,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,circuitbreakers,circuitbreakerevents
   tracing:
     sampling:
       probability: 1.0
@@ -57,7 +55,31 @@ management:
   otlp:
     tracing:
       endpoint: http://${JAEGER_HOST:localhost}:4318/v1/traces
+  metrics:
+    tags:
+      service: ${spring.application.name}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      serviceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 100
+        slowCallDurationThreshold: 2s
+        recordExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException
 
 logging:
   level:
     root: INFO
+    io.github.resilience4j: DEBUG

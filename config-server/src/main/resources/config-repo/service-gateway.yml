@@ -1,31 +1,19 @@
 spring:
   application:
     name: service-gateway
-  config:
-    import: optional:configserver:http://config-server:8888
 
 server:
   port: 8999
 
-eureka:
-  client:
-    register-with-eureka: false
-    service-url:
-      defaultZone: http://eureka:8761/eureka
-
 gateway:
   oauth2:
     validation-endpoint: http://service-authentication/api/oauth/token/validate
-  
-  # Public paths that don't require authentication
   public-paths:
     - /api/oauth/token
     - /actuator
     - /swagger-ui
     - /api-docs
     - /v3/api-docs
-  
-  # Route configuration: path pattern -> service mapping
   routes:
     - path: /api/oauth/**
       service: service-authentication
@@ -51,9 +39,11 @@ management:
     export:
       otlp:
         enabled: true
+    propagation:
+      type: W3C
   otlp:
     tracing:
-      endpoint: http://otel-collector:4318/v1/traces
+      endpoint: http://${JAEGER_HOST:localhost}:4318/v1/traces
   metrics:
     tags:
       service: ${spring.application.name}
@@ -80,5 +70,4 @@ resilience4j:
 
 logging:
   level:
-    root: INFO
     io.github.resilience4j: DEBUG

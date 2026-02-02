@@ -2,3 +2,5 @@ spring:
   application:
     name: service-authentication
     version: '@project.version@'
+  config:
+    import: optional:configserver:http://localhost:8888

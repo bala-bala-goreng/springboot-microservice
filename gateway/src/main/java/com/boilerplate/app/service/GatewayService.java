@@ -1,6 +1,8 @@
 package com.boilerplate.app.service;
 
 import com.boilerplate.app.config.GatewayRouteConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -22,11 +25,8 @@ import java.util.Enumeration;
 public class GatewayService {
     private final RestTemplate restTemplate;
     private final GatewayRouteConfig gatewayRouteConfig;
+    private final CircuitBreaker serviceCircuitBreaker;
 
-    /**
-     * Find matching route for the given path.
-     * Returns the route configuration if found, null otherwise.
-     */
     public GatewayRouteConfig.Route findMatchingRoute(String path) {
         if (gatewayRouteConfig.getRoutes() == null || gatewayRouteConfig.getRoutes().isEmpty()) {
             return null;
@@ -38,9 +38,6 @@ public class GatewayService {
             .orElse(null);
     }
 
-    /**
-     * Check if path matches the pattern (supports ** wildcard).
-     */
     private boolean matchesPath(String path, String pattern) {
         if (pattern.endsWith("/**")) {
             String prefix = pattern.substring(0, pattern.length() - 3);
@@ -49,9 +46,6 @@ public class GatewayService {
         return path.equals(pattern) || path.startsWith(pattern + "/");
     }
 
-    /**
-     * Check if path is public (doesn't require authentication).
-     */
     public boolean isPublicPath(String path) {
         if (gatewayRouteConfig.getPublicPaths() == null) {
             return false;
@@ -68,6 +62,27 @@ public class GatewayService {
         Object body,
         HttpServletRequest request
     ) {
+        Supplier<ResponseEntity<String>> supplier = () -> executeRequest(serviceId, path, method, headers, body, request);
+        
+        try {
+            return serviceCircuitBreaker.executeSupplier(supplier);
+        } catch (CallNotPermittedException e) {
+            log.warn("Circuit breaker is OPEN for service {}: {}", serviceId, e.getMessage());
+            return fallbackResponse(serviceId, "Circuit breaker is open. Service is temporarily unavailable.");
+        } catch (Exception e) {
+            log.error("Error in circuit breaker execution for service {}: {}", serviceId, e.getMessage());
+            return handleException(serviceId, e);
+        }
+    }
+
+    private ResponseEntity<String> executeRequest(
+        String serviceId,
+        String path,
+        HttpMethod method,
+        HttpHeaders headers,
+        Object body,
+        HttpServletRequest request
+    ) {
         try {
             String pathValue = path != null ? path : "";
             String queryString = request != null ? request.getQueryString() : null;
@@ -75,7 +90,6 @@ public class GatewayService {
                 pathValue += "?" + queryString;
             }
             
-            // Build target URL using service name - @LoadBalanced RestTemplate will resolve via Eureka
             String targetUrl = "http://" + serviceId + pathValue;
             log.debug("Routing {} {} to service {} at {}", method, request != null ? request.getRequestURI() : path, serviceId, targetUrl);
 
@@ -124,21 +138,34 @@ public class GatewayService {
         } catch (IllegalStateException e) {
             if (e.getMessage() != null && e.getMessage().contains("No instances available")) {
                 log.error("No instances available for service {}", serviceId);
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body("{\"error\":\"Service unavailable\",\"message\":\"No instances available for service " + serviceId + "\"}");
+                throw new RuntimeException("No instances available for service " + serviceId, e);
             }
-            log.error("Error routing to service {}: {}", serviceId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("{\"error\":\"Gateway error\",\"message\":\"" + e.getMessage() + "\"}");
+            throw new RuntimeException("Error routing to service: " + e.getMessage(), e);
         } catch (org.springframework.web.client.ResourceAccessException e) {
             log.error("Connection error routing to service {}: {}", serviceId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body("{\"error\":\"Service unavailable\",\"message\":\"Connection failed\"}");
-        } catch (Exception e) {
-            log.error("Unexpected error routing to service {}: {}", serviceId, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("{\"error\":\"Gateway error\",\"message\":\"" + e.getMessage() + "\"}");
+            throw new RuntimeException("Connection failed to service " + serviceId, e);
         }
+    }
+
+    private ResponseEntity<String> fallbackResponse(String serviceId, String message) {
+        return ResponseEntity
+            .status(HttpStatus.SERVICE_UNAVAILABLE)
+            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .body("{\"error\":\"Service unavailable\",\"message\":\"" + message + "\",\"service\":\"" + serviceId + "\"}");
+    }
+
+    private ResponseEntity<String> handleException(String serviceId, Exception e) {
+        if (e.getCause() instanceof IllegalStateException) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body("{\"error\":\"Service unavailable\",\"message\":\"No instances available for service " + serviceId + "\"}");
+        }
+        if (e.getCause() instanceof org.springframework.web.client.ResourceAccessException) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body("{\"error\":\"Service unavailable\",\"message\":\"Connection failed to service " + serviceId + "\"}");
+        }
+        log.error("Unexpected error routing to service {}: {}", serviceId, e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body("{\"error\":\"Gateway error\",\"message\":\"" + e.getMessage() + "\"}");
     }
 
     private HttpHeaders filterResponseHeaders(HttpHeaders originalHeaders) {

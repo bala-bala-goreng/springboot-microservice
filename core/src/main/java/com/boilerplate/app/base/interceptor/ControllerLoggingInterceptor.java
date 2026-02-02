@@ -3,9 +3,10 @@ package com.boilerplate.app.base.interceptor;
 import com.boilerplate.app.base.constant.TraceConstants;
 import com.boilerplate.app.base.logging.RequestResponseLogger;
 import com.boilerplate.app.base.util.TraceIdUtil;
-
+import io.micrometer.tracing.Tracer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -18,9 +19,18 @@ import java.util.Map;
 
 /**
  * Base logging interceptor for HTTP requests/responses.
+ * 
+ * Best Practice:
+ * - Spring Boot 3.x with Micrometer Tracing automatically handles trace context propagation
+ * - Trace ID is automatically populated in MDC by Micrometer
+ * - This interceptor only focuses on logging request/response details
+ * 
  * Each service should create a @Component that extends this class.
  */
 public class ControllerLoggingInterceptor implements HandlerInterceptor {
+
+    @Autowired(required = false)
+    private Tracer tracer;
 
     @Override
     public boolean preHandle(
@@ -28,18 +38,15 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
         @NonNull HttpServletResponse response,
         @NonNull Object handler
     ) {
-        // Generate trace ID and store in MDC for use across the request lifecycle
-        String traceId = TraceIdUtil.generateAndSet();
         long startTime = System.currentTimeMillis();
-
-        request.setAttribute(TraceConstants.REQUEST_ATTRIBUTE_TRACE_ID, traceId);
         request.setAttribute(TraceConstants.REQUEST_ATTRIBUTE_START_TIME, startTime);
 
-        // Log REQUEST here (before controller method executes) to ensure correct sequence:
-        // REQUEST controller -> Service -> RESPONSE controller
-        // Body is already cached by filter (ArtajasaHeaderValidationFilter) in request attribute
+        String traceId = getTraceId();
+        request.setAttribute(TraceConstants.REQUEST_ATTRIBUTE_TRACE_ID, traceId);
+
         Map<String, String> requestHeaders = getHeaders(request);
         byte[] requestBody = getRequestBody(request);
+        
         RequestResponseLogger.logRequest(
             traceId,
             request.getMethod(),
@@ -62,8 +69,6 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
         Long startTime = (Long) request.getAttribute(TraceConstants.REQUEST_ATTRIBUTE_START_TIME);
         long elapsedTime = startTime != null ? System.currentTimeMillis() - startTime : 0;
 
-        // Log RESPONSE here (after controller method executes) to ensure correct sequence:
-        // REQUEST controller -> Service -> RESPONSE controller
         Map<String, String> headers = getResponseHeaders(response);
         byte[] body = getResponseBody(response);
         
@@ -78,8 +83,7 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
         @Nullable Exception ex
     ) {
         if (ex != null) {
-            String traceId = TraceIdUtil.get();
-            
+            String traceId = getTraceId();
             RequestResponseLogger.logError(
                 traceId,
                 request.getMethod(),
@@ -88,8 +92,20 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
                 response.getStatus()
             );
         }
-        
-        TraceIdUtil.clear();
+    }
+
+    /**
+     * Get trace ID from Micrometer Tracing (automatically populated by Spring Boot).
+     * Falls back to MDC if Micrometer is not available.
+     */
+    private String getTraceId() {
+        if (tracer != null && tracer.currentSpan() != null) {
+            String traceId = tracer.currentSpan().context().traceId();
+            if (traceId != null && !traceId.isEmpty()) {
+                return traceId;
+            }
+        }
+        return TraceIdUtil.get();
     }
 
     private Map<String, String> getHeaders(HttpServletRequest request) {
@@ -109,16 +125,12 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
     }
 
     private byte[] getRequestBody(HttpServletRequest request) {
-        // First, try to get from request attribute (set by custom wrappers like ArtajasaHeaderValidationFilter)
         Object cachedBodyAttr = request.getAttribute(TraceConstants.REQUEST_ATTRIBUTE_CACHED_BODY);
         if (cachedBodyAttr instanceof byte[]) {
             return (byte[]) cachedBodyAttr;
         }
         
-        // Fallback to ContentCachingRequestWrapper if available
         if (request instanceof ContentCachingRequestWrapper cachedRequest) {
-            // By the time this is called in postHandle, Spring has already read the body
-            // for @RequestBody and ContentCachingRequestWrapper has cached it.
             byte[] body = cachedRequest.getContentAsByteArray();
             if (body != null && body.length > 0) {
                 return body;
@@ -129,8 +141,7 @@ public class ControllerLoggingInterceptor implements HandlerInterceptor {
     }
 
     private byte[] getResponseBody(HttpServletResponse response) {
-        if (response instanceof ContentCachingResponseWrapper) {
-            ContentCachingResponseWrapper cachedResponse = (ContentCachingResponseWrapper) response;
+        if (response instanceof ContentCachingResponseWrapper cachedResponse) {
             return cachedResponse.getContentAsByteArray();
         }
         return null;

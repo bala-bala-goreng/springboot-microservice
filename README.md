@@ -88,7 +88,13 @@ springboot-boilerplate/
 │
 ├── eureka/                        # Service Discovery Server
 │   ├── src/main/java/.../
-│   │   └── EurekaServerApplication.java
+│   │   └── EurekaApplication.java
+│   └── pom.xml
+│
+├── config-server/                 # Spring Cloud Config Server
+│   ├── src/main/java/.../
+│   │   └── ConfigServerApplication.java
+│   ├── src/main/resources/config-repo/  # Configuration repository
 │   └── pom.xml
 │
 ├── gateway/                       # API Gateway Service
@@ -161,7 +167,19 @@ Netflix Eureka server that acts as a service registry:
 **Port**: `8761`  
 **Dashboard**: http://localhost:8761
 
-### 3. **API Gateway** (`gateway/`)
+### 3. **Config Server** (`config-server/`)
+Spring Cloud Config Server for centralized configuration management:
+
+- **Centralized Configuration**: All service configurations in one place
+- **Profile Support**: Environment-specific configurations (default, docker, development)
+- **Service-Specific Configs**: Individual service configurations
+- **Shared Configs**: Common configurations across services
+- **Configuration Refresh**: Update configurations without service restart
+
+**Port**: `8888`  
+**URL**: http://localhost:8888
+
+### 4. **API Gateway** (`gateway/`)
 Central entry point for all client requests:
 
 - **Request Routing**: Routes requests to appropriate backend services based on path patterns
@@ -176,7 +194,7 @@ Central entry point for all client requests:
 - Request body caching for multiple reads
 - Automatic service discovery via Eureka
 
-### 4. **Authentication Service** (`authentication/`)
+### 5. **Authentication Service** (`authentication/`)
 Handles all authentication and authorization:
 
 - **OAuth2 Token Generation**: Client Credentials flow with Basic Authentication for partners
@@ -193,7 +211,7 @@ Handles all authentication and authorization:
 - Token validation and revocation
 - Database tracing enabled (JDBC spans)
 
-### 5. **Account Service** (`account/`)
+### 6. **Account Service** (`account/`)
 Manages user accounts and profiles:
 
 - **User Management**: User CRUD operations
@@ -205,7 +223,7 @@ Manages user accounts and profiles:
 **Key Features**:
 - Database tracing enabled (JDBC spans)
 
-### 6. **Payment Service** (`payment/`)
+### 7. **Payment Service** (`payment/`)
 Handles payment processing and transactions:
 
 - **Payment Processing**: Payment transaction handling
@@ -277,6 +295,7 @@ docker-compose ps
 
 **Service URLs**:
 - Eureka Dashboard: http://localhost:8761
+- Config Server: http://localhost:8888
 - Gateway: http://localhost:8999
 - Authentication Service: http://localhost:8080
 - Account Service: http://localhost:8081
@@ -441,15 +460,54 @@ Used by all services (Authentication, Account, and Payment):
 
 ## 📝 Configuration
 
+### Spring Cloud Config Server
+
+Centralized configuration management via Spring Cloud Config Server:
+
+- **Port**: `8888`
+- **URL**: http://localhost:8888
+- **Configuration Repository**: `config-server/src/main/resources/config-repo/`
+
+**Features:**
+- Centralized configuration for all services
+- Profile-based configuration (default, docker, development)
+- Service-specific and shared configurations
+- Configuration refresh without restart (via `/actuator/refresh`)
+
+**Configuration Files:**
+- `application.yml` - Shared configuration for all services
+- `service-gateway.yml` - Gateway service configuration
+- `service-authentication.yml` - Authentication service configuration
+- `service-account.yml` - Account service configuration
+- `service-payment.yml` - Payment service configuration
+- `service-eureka.yml` - Eureka service configuration
+
+**Accessing Configuration:**
+```bash
+# Get configuration for a service
+curl http://localhost:8888/service-gateway/default
+
+# Get configuration for specific profile
+curl http://localhost:8888/service-gateway/docker
+```
+
+**Service Integration:**
+All services automatically connect to config server via:
+```yaml
+spring:
+  config:
+    import: optional:configserver:http://config-server:8888
+```
+
 ### Service Configuration
-Each service has multiple profile configurations:
+Each service has local configuration files that can override config server settings:
 - `application.yml`: Base configuration
 - `application-local.yml`: Local development
 - `application-development.yml`: Development environment
 - `application-default.yml`: Default/production
 
 ### Gateway Routes
-Configure routes in `gateway/src/main/resources/application-default.yml`:
+Configure routes in config server (`config-server/src/main/resources/config-repo/service-gateway.yml`) or locally:
 
 ```yaml
 gateway:

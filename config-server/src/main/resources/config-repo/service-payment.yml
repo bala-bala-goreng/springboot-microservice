@@ -1,10 +1,8 @@
 spring:
   application:
     name: service-payment
-  config:
-    import: optional:configserver:http://config-server:8888
   datasource:
-    url: jdbc:postgresql://postgresql:5432/app_db
+    url: jdbc:postgresql://localhost:5432/app_db
     username: app_user
     password: app_password
   jpa:
@@ -13,18 +11,11 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        # Enable Hibernate statistics for tracing
         generate_statistics: true
-        # Format SQL for better readability in traces
         format_sql: true
 
 server:
   port: 8082
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://eureka:8761/eureka
 
 management:
   endpoints:
@@ -37,13 +28,13 @@ management:
     export:
       otlp:
         enabled: true
-    # Enable database/JDBC tracing
+    propagation:
+      type: W3C
     jdbc:
       enabled: true
   otlp:
     tracing:
-      endpoint: http://otel-collector:4318/v1/traces
-
-logging:
-  level:
-    root: INFO
+      endpoint: http://${JAEGER_HOST:localhost}:4318/v1/traces
+  metrics:
+    tags:
+      service: ${spring.application.name}

@@ -48,7 +48,33 @@ services:
     networks:
       - app-network
 
-  # 2. Authentication Service - Depends on Eureka and PostgreSQL
+  # 2. Config Server - Depends on Eureka
+  config-server:
+    build:
+      context: ..
+      dockerfile: config-server/Dockerfile
+    container_name: app-config-server
+    hostname: config-server
+    ports:
+      - "8888:8888"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker,native
+    volumes:
+      - ../config-server/src/main/resources/config-repo:/config-repo:ro
+    depends_on:
+      eureka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # 3. Authentication Service - Depends on Eureka, Config Server and PostgreSQL
   authentication:
     build:
       context: ..
@@ -60,8 +86,11 @@ services:
     command: sh -c "sleep 10 && java $JAVA_OPTS -jar /app/app.jar"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
     depends_on:
       eureka:
+        condition: service_healthy
+      config-server:
         condition: service_healthy
       postgresql:
         condition: service_healthy
@@ -75,7 +104,7 @@ services:
     networks:
       - app-network
 
-  # 3. Account Service - Depends on Eureka and PostgreSQL
+  # 4. Account Service - Depends on Eureka, Config Server and PostgreSQL
   account:
     build:
       context: ..
@@ -87,8 +116,11 @@ services:
     command: sh -c "sleep 10 && java $JAVA_OPTS -jar /app/app.jar"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
     depends_on:
       eureka:
+        condition: service_healthy
+      config-server:
         condition: service_healthy
       postgresql:
         condition: service_healthy
@@ -102,7 +134,7 @@ services:
     networks:
       - app-network
 
-  # 4. Payment Service - Depends on Eureka and PostgreSQL
+  # 5. Payment Service - Depends on Eureka, Config Server and PostgreSQL
   payment:
     build:
       context: ..
@@ -114,8 +146,11 @@ services:
     command: sh -c "sleep 10 && java $JAVA_OPTS -jar /app/app.jar"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
     depends_on:
       eureka:
+        condition: service_healthy
+      config-server:
         condition: service_healthy
       postgresql:
         condition: service_healthy
@@ -129,7 +164,7 @@ services:
     networks:
       - app-network
 
-  # 5. Gateway Service - Depends on Eureka and all other services
+  # 6. Gateway Service - Depends on Eureka, Config Server and all other services
   gateway:
     build:
       context: ..
@@ -141,8 +176,11 @@ services:
     command: sh -c "sleep 30 && java $JAVA_OPTS -jar /app/app.jar"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
     depends_on:
       eureka:
+        condition: service_healthy
+      config-server:
         condition: service_healthy
       authentication:
         condition: service_healthy
@@ -160,7 +198,7 @@ services:
     networks:
       - app-network
 
-  # 6. OpenTelemetry Collector - Middleware for better error handling
+  # 7. OpenTelemetry Collector - Middleware for better error handling
   opentelemetry-collector:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: app-otel-collector
@@ -176,7 +214,7 @@ services:
       - tempo
     restart: unless-stopped
 
-  # 7. Tempo - Distributed Tracing Backend (for Grafana)
+  # 8. Tempo - Distributed Tracing Backend (for Grafana)
   # Using version 2.3.1 which has better single-node support
   tempo:
     image: grafana/tempo:2.3.1
@@ -196,7 +234,7 @@ services:
       - app-network
     restart: unless-stopped
 
-  # 7. Prometheus - Metrics Collection
+  # 9. Prometheus - Metrics Collection
   prometheus:
     image: prom/prometheus:latest
     container_name: app-prometheus
@@ -217,7 +255,7 @@ services:
       - app-network
     restart: unless-stopped
 
-  # 8. Grafana - Monitoring Dashboard (Metrics, Logs, Traces)
+  # 10. Grafana - Monitoring Dashboard (Metrics, Logs, Traces)
   grafana:
     image: grafana/grafana:latest
     container_name: app-grafana

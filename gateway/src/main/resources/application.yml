@@ -2,8 +2,9 @@ spring:
   application:
     name: service-gateway
     version: '@project.version@'
+  config:
+    import: optional:configserver:http://localhost:8888
 
-# Gateway configuration - routes managed via YAML
 gateway:
   oauth2:
     validation-endpoint: http://service-authentication/api/oauth/token/validate

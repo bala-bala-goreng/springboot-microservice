@@ -1,0 +1,33 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+    export:
+      otlp:
+        enabled: true
+    propagation:
+      type: W3C
+  observations:
+    key-values:
+      enabled: true
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
+  metrics:
+    tags:
+      service: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://eureka:8761/eureka
